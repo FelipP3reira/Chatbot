@@ -44,7 +44,7 @@ def registrar_tratadores_de_erro(app: FastAPI) -> None:
             for falha in erro.errors()
         ]
         return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             content=_corpo("entrada_invalida", "Os dados enviados não são válidos.", detalhes),
         )
 
