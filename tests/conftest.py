@@ -14,12 +14,15 @@ SERVIDOR = "postgresql://chatbot:chatbot@localhost:5437"
 
 os.environ["AMBIENTE"] = "teste"
 os.environ["PROVEDOR_LLM"] = "fake"
+# Embeddings sem download: determinísticos e rápidos o bastante para a suíte.
+os.environ["EMBEDDER"] = "hashing"
 os.environ["DATABASE_URL"] = (
     f"postgresql+asyncpg://chatbot:chatbot@localhost:5437/{BANCO_DE_TESTES}"
 )
 
 from app.config import obter_configuracao  # noqa: E402
 from app.llm.fabrica import obter_provedor  # noqa: E402
+from app.rag.fabrica import obter_embedder  # noqa: E402
 
 
 async def _criar_banco_se_faltar() -> None:
@@ -44,11 +47,15 @@ def _banco_migrado() -> None:
 
 @pytest.fixture(autouse=True)
 def _caches_limpos() -> Iterator[None]:
-    obter_configuracao.cache_clear()
-    obter_provedor.cache_clear()
+    _limpar_caches()
     yield
+    _limpar_caches()
+
+
+def _limpar_caches() -> None:
     obter_configuracao.cache_clear()
     obter_provedor.cache_clear()
+    obter_embedder.cache_clear()
 
 
 @pytest.fixture
@@ -63,6 +70,6 @@ async def banco_limpo() -> AsyncIterator[None]:
 
     conexao = await asyncpg.connect(f"{SERVIDOR}/{BANCO_DE_TESTES}")
     try:
-        await conexao.execute("TRUNCATE conversas CASCADE")
+        await conexao.execute("TRUNCATE conversas, documentos CASCADE")
     finally:
         await conexao.close()

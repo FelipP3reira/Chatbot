@@ -73,6 +73,28 @@ do primeiro pedaço**, não há retry: o usuário já leu aquele texto, e repeti
 duplicaria a resposta na tela. A troca só entra no histórico quando a resposta
 termina inteira.
 
+## RAG
+
+`POST /documentos` divide o texto em trechos com sobreposição, gera os embeddings
+e grava tudo no Postgres. Cada pergunta recupera até 4 trechos por distância do
+cosseno (índice HNSW) e os injeta no prompt.
+
+**Embeddings rodam na máquina.** A Anthropic não expõe API de embeddings, então
+o vetor vem de outro lugar: `sentence-transformers/all-MiniLM-L6-v2` (384
+dimensões), atrás de um `Protocol`. Não há chave nem custo, e o RAG inteiro
+funciona offline. Trocar por um provedor de API é implementar a interface.
+
+**O corte de distância foi medido, não chutado.** Comparando uma pergunta
+pertinente com uma de outro assunto: MiniLM dá 0,32 contra 0,69; o embedder de
+hashing dá 0,34 contra 0,88. Um corte em **0,5** separa os dois casos. Sem esse
+limite, uma pergunta sobre Marte traria o documento sobre café para o prompt.
+
+**Trecho recuperado é dado, não instrução.** Cada trecho entra delimitado por
+`<trecho>`, precedido de um aviso explícito de que o conteúdo não deve ser
+obedecido, e com as marcas de fechamento escapadas — assim um documento
+envenenado não consegue encerrar o próprio bloco e escrever fora dele. Há teste
+para o documento hostil e para a tentativa de fuga do bloco.
+
 ## Estrutura
 
 ```
@@ -95,6 +117,6 @@ Em construção, por fatias:
 - [x] Bootstrap: configuração validada, tratamento central de erro, saúde, Docker
 - [x] Conversa persistida, histórico com janela e provedores (Anthropic e fake)
 - [x] Streaming (SSE) e resiliência do provedor: timeout, retry e fallback
-- [ ] RAG: ingestão, embeddings, busca por similaridade, injeção de contexto
+- [x] RAG: ingestão, embeddings, busca por similaridade, injeção de contexto
 - [ ] Rate limit e limite de tokens por sessão
 - [ ] Frontend com sanitização

@@ -9,8 +9,9 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from app.config import obter_configuracao
 
 # Importado pelo efeito colateral: registra as tabelas em Base.metadata.
-from app.conversa import modelos  # noqa: F401
+from app.conversa import modelos as modelos_de_conversa  # noqa: F401
 from app.db import Base
+from app.rag import modelos as modelos_de_rag  # noqa: F401
 
 configuracao_alembic = context.config
 # A URL vem do ambiente, não do alembic.ini: um lugar só para configurar.
