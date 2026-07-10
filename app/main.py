@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import conversas, saude
+from app.api import conversas, documentos, saude
 from app.config import obter_configuracao
 from app.erros import registrar_tratadores_de_erro
 
@@ -24,6 +24,7 @@ def criar_aplicacao() -> FastAPI:
     registrar_tratadores_de_erro(app)
     app.include_router(saude.roteador)
     app.include_router(conversas.roteador)
+    app.include_router(documentos.roteador)
     return app
 
 

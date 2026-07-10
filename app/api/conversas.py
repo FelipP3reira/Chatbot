@@ -9,11 +9,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.documentos import obter_indice
 from app.conversa.repositorio import RepositorioDeConversas
 from app.conversa.servico import ServicoDeConversa
 from app.db import obter_sessao
 from app.llm.base import ProvedorIndisponivel, ProvedorLLM
 from app.llm.fabrica import obter_provedor
+from app.rag.indice import IndiceDeDocumentos
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +39,9 @@ class PedidoDeMensagem(BaseModel):
 def obter_servico(
     sessao: Annotated[AsyncSession, Depends(obter_sessao)],
     provedor: Annotated[ProvedorLLM, Depends(obter_provedor)],
+    indice: Annotated[IndiceDeDocumentos, Depends(obter_indice)],
 ) -> ServicoDeConversa:
-    return ServicoDeConversa(RepositorioDeConversas(sessao), provedor)
+    return ServicoDeConversa(RepositorioDeConversas(sessao), provedor, indice)
 
 
 @roteador.post("", status_code=status.HTTP_201_CREATED, response_model=RespostaConversaCriada)

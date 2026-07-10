@@ -18,6 +18,11 @@ class Configuracao(BaseSettings):
     anthropic_api_key: SecretStr | None = None
     modelo_llm: str = "claude-opus-4-8"
 
+    # "local" baixa o modelo de embeddings na primeira ingestão; "hashing" é
+    # um saco de palavras sem download, usado nos testes e em máquinas apertadas.
+    embedder: Literal["local", "hashing"] = "local"
+    modelo_embedding: str = "sentence-transformers/all-MiniLM-L6-v2"
+
     database_url: str = "postgresql+asyncpg://chatbot:chatbot@localhost:5437/chatbot"
     redis_url: str = "redis://localhost:6383/0"
 

@@ -7,17 +7,20 @@ from app.conversa.historico import montar_historico
 from app.conversa.repositorio import RepositorioDeConversas
 from app.erros import ErroDaAplicacao
 from app.llm.base import MensagemDoModelo, ProvedorLLM
-
-INSTRUCAO_DO_SISTEMA = (
-    "Você é um assistente prestativo e direto. Responda em português do Brasil. "
-    "Quando não souber algo, diga que não sabe em vez de inventar."
-)
+from app.rag.contexto import montar_instrucao
+from app.rag.indice import IndiceDeDocumentos
 
 
 class ServicoDeConversa:
-    def __init__(self, repositorio: RepositorioDeConversas, provedor: ProvedorLLM) -> None:
+    def __init__(
+        self,
+        repositorio: RepositorioDeConversas,
+        provedor: ProvedorLLM,
+        indice: IndiceDeDocumentos,
+    ) -> None:
         self._repositorio = repositorio
         self._provedor = provedor
+        self._indice = indice
 
     async def responder_em_pedacos(
         self, conversa_id: uuid.UUID, pergunta: str
@@ -25,13 +28,23 @@ class ServicoDeConversa:
         """Valida a conversa antes de devolver o gerador: um 404 precisa virar
         resposta HTTP, não um evento no meio do stream."""
         turnos = await self._preparar_turnos(conversa_id, pergunta)
-        return self._transmitir(conversa_id, pergunta, turnos)
+
+        # A busca usa só a pergunta atual, não a conversa inteira: o histórico
+        # antigo puxaria trechos do assunto anterior.
+        trechos = await self._indice.buscar(pergunta)
+        instrucao = montar_instrucao(trechos)
+
+        return self._transmitir(conversa_id, pergunta, instrucao, turnos)
 
     async def _transmitir(
-        self, conversa_id: uuid.UUID, pergunta: str, turnos: Sequence[MensagemDoModelo]
+        self,
+        conversa_id: uuid.UUID,
+        pergunta: str,
+        instrucao: str,
+        turnos: Sequence[MensagemDoModelo],
     ) -> AsyncIterator[str]:
         pedacos: list[str] = []
-        async for pedaco in self._provedor.gerar_stream(INSTRUCAO_DO_SISTEMA, turnos):
+        async for pedaco in self._provedor.gerar_stream(instrucao, turnos):
             pedacos.append(pedaco)
             yield pedaco
 
