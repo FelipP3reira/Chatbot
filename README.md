@@ -21,11 +21,16 @@ Pré-requisitos: Python 3.12+ e Docker.
 cp .env.example .env          # preencha ANTHROPIC_API_KEY
 docker compose up -d          # Postgres na 5437, Redis na 6383
 python -m venv .venv && .venv/bin/pip install -e ".[dev]"
+alembic upgrade head          # cria o schema
 .venv/bin/pytest              # a suíte roda com o provedor "fake", sem rede
 uvicorn app.main:app --reload
 ```
 
 Sem chave da Anthropic? Use `PROVEDOR_LLM=fake` e o projeto sobe inteiro offline.
+
+Os testes exigem o Docker de pé: criam e migram um banco `chatbot_teste`
+próprio, aplicando as migrações reais — se uma migração divergir dos modelos, a
+suíte quebra.
 
 ## Configuração
 
@@ -63,8 +68,8 @@ tests/            testes de integração
 Em construção, por fatias:
 
 - [x] Bootstrap: configuração validada, tratamento central de erro, saúde, Docker
-- [ ] Conversa persistida e histórico
-- [ ] Streaming (SSE) e provedor Anthropic com timeout, retry e fallback
+- [x] Conversa persistida, histórico com janela e provedores (Anthropic e fake)
+- [ ] Streaming (SSE) e resiliência do provedor: timeout, retry e fallback
 - [ ] RAG: ingestão, embeddings, busca por similaridade, injeção de contexto
 - [ ] Rate limit e limite de tokens por sessão
 - [ ] Frontend com sanitização
