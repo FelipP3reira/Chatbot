@@ -1,0 +1,142 @@
+:root {
+  --fundo: #11151c;
+  --superficie: #1a202b;
+  --borda: #2c3546;
+  --texto: #e6e9ef;
+  --suave: #8b93a5;
+  --destaque: #4c8bf5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  font: 16px/1.5 system-ui, sans-serif;
+}
+
+.pagina {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 16px 48px;
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 1.6rem;
+}
+
+h2 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  color: var(--suave);
+  font-weight: 600;
+}
+
+.legenda {
+  margin: 0 0 32px;
+  color: var(--suave);
+}
+
+.documentos {
+  padding: 16px;
+  margin-bottom: 32px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: var(--superficie);
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.conversa form {
+  flex-direction: row;
+}
+
+input,
+textarea,
+button {
+  font: inherit;
+  color: inherit;
+  border-radius: 8px;
+  border: 1px solid var(--borda);
+  padding: 10px 12px;
+  background: var(--fundo);
+}
+
+textarea {
+  resize: vertical;
+}
+
+input:focus,
+textarea:focus {
+  outline: 2px solid var(--destaque);
+  outline-offset: -1px;
+}
+
+.conversa input {
+  flex: 1;
+}
+
+button {
+  background: var(--destaque);
+  border-color: var(--destaque);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.aviso {
+  margin: 12px 0 0;
+  min-height: 1.5em;
+  color: var(--suave);
+  font-size: 0.9rem;
+}
+
+.mensagens {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mensagem {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--borda);
+  background: var(--superficie);
+}
+
+.mensagem--usuario {
+  border-color: var(--destaque);
+}
+
+.autor {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--suave);
+  margin-bottom: 4px;
+}
+
+.corpo {
+  margin: 0;
+  /* A resposta do modelo vem com quebras de linha; preservá-las evita ter que
+     interpretar markdown, que é por onde HTML voltaria para a página. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
