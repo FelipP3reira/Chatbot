@@ -1,10 +1,16 @@
 from collections.abc import AsyncIterator, Sequence
 from typing import Literal
 
-from anthropic import AsyncAnthropic
+from anthropic import (
+    APIConnectionError,
+    APIStatusError,
+    APITimeoutError,
+    AsyncAnthropic,
+    RateLimitError,
+)
 from anthropic.types import MessageParam
 
-from app.llm.base import MensagemDoModelo
+from app.llm.base import ErroTemporarioDoProvedor, MensagemDoModelo, ProvedorIndisponivel
 
 MAX_TOKENS_DA_RESPOSTA = 2048
 
@@ -20,14 +26,23 @@ class ProvedorAnthropic:
     async def gerar_stream(
         self, sistema: str, mensagens: Sequence[MensagemDoModelo]
     ) -> AsyncIterator[str]:
-        async with self._cliente.messages.stream(
-            model=self._modelo,
-            max_tokens=MAX_TOKENS_DA_RESPOSTA,
-            system=sistema,
-            messages=[_para_a_api(mensagem) for mensagem in mensagens],
-        ) as fluxo:
-            async for texto in fluxo.text_stream:
-                yield texto
+        try:
+            async with self._cliente.messages.stream(
+                model=self._modelo,
+                max_tokens=MAX_TOKENS_DA_RESPOSTA,
+                system=sistema,
+                messages=[_para_a_api(mensagem) for mensagem in mensagens],
+            ) as fluxo:
+                async for texto in fluxo.text_stream:
+                    yield texto
+        except (RateLimitError, APITimeoutError, APIConnectionError) as erro:
+            raise ErroTemporarioDoProvedor(str(erro)) from erro
+        except APIStatusError as erro:
+            # 5xx é problema do outro lado e passa; 4xx é problema nosso e
+            # insistir só queima cota.
+            if erro.status_code >= 500:
+                raise ErroTemporarioDoProvedor(str(erro)) from erro
+            raise ProvedorIndisponivel(str(erro)) from erro
 
 
 def _para_a_api(mensagem: MensagemDoModelo) -> MessageParam:

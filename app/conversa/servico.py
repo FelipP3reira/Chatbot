@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import AsyncIterator, Sequence
 
 from fastapi import status
 
@@ -18,16 +19,25 @@ class ServicoDeConversa:
         self._repositorio = repositorio
         self._provedor = provedor
 
-    async def responder(self, conversa_id: uuid.UUID, pergunta: str) -> str:
+    async def responder_em_pedacos(
+        self, conversa_id: uuid.UUID, pergunta: str
+    ) -> AsyncIterator[str]:
+        """Valida a conversa antes de devolver o gerador: um 404 precisa virar
+        resposta HTTP, não um evento no meio do stream."""
         turnos = await self._preparar_turnos(conversa_id, pergunta)
+        return self._transmitir(conversa_id, pergunta, turnos)
 
-        pedacos = [
-            pedaco async for pedaco in self._provedor.gerar_stream(INSTRUCAO_DO_SISTEMA, turnos)
-        ]
-        resposta = "".join(pedacos).strip()
+    async def _transmitir(
+        self, conversa_id: uuid.UUID, pergunta: str, turnos: Sequence[MensagemDoModelo]
+    ) -> AsyncIterator[str]:
+        pedacos: list[str] = []
+        async for pedaco in self._provedor.gerar_stream(INSTRUCAO_DO_SISTEMA, turnos):
+            pedacos.append(pedaco)
+            yield pedaco
 
-        await self._repositorio.registrar_troca(conversa_id, pergunta, resposta)
-        return resposta
+        # Só grava depois que a resposta terminou inteira. Uma falha no meio
+        # deixa a conversa sem meia-resposta no histórico.
+        await self._repositorio.registrar_troca(conversa_id, pergunta, "".join(pedacos).strip())
 
     async def _preparar_turnos(
         self, conversa_id: uuid.UUID, pergunta: str
