@@ -28,6 +28,11 @@ class Configuracao(BaseSettings):
 
     origens_permitidas: list[str] = Field(default_factory=lambda: ["http://localhost:8000"])
 
+    mensagens_por_minuto_por_ip: int = Field(default=20, gt=0)
+    mensagens_por_minuto_por_conversa: int = Field(default=10, gt=0)
+    teto_de_tokens_por_conversa: int = Field(default=50_000, gt=0)
+    validade_do_orcamento_segundos: int = Field(default=86_400, gt=0)
+
     @model_validator(mode="after")
     def exigir_chave_do_provedor(self) -> Self:
         if self.provedor_llm == "anthropic" and self.anthropic_api_key is None:

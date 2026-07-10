@@ -16,11 +16,14 @@ os.environ["AMBIENTE"] = "teste"
 os.environ["PROVEDOR_LLM"] = "fake"
 # Embeddings sem download: determinísticos e rápidos o bastante para a suíte.
 os.environ["EMBEDDER"] = "hashing"
+# Banco 1 do Redis: a suite nunca toca no banco 0, usado em desenvolvimento.
+os.environ["REDIS_URL"] = "redis://localhost:6383/1"
 os.environ["DATABASE_URL"] = (
     f"postgresql+asyncpg://chatbot:chatbot@localhost:5437/{BANCO_DE_TESTES}"
 )
 
 from app.config import obter_configuracao  # noqa: E402
+from app.limites.redis_cliente import obter_redis  # noqa: E402
 from app.llm.fabrica import obter_provedor  # noqa: E402
 from app.rag.fabrica import obter_embedder  # noqa: E402
 
@@ -56,11 +59,17 @@ def _limpar_caches() -> None:
     obter_configuracao.cache_clear()
     obter_provedor.cache_clear()
     obter_embedder.cache_clear()
+    obter_redis.cache_clear()
 
 
 @pytest.fixture
 async def banco_limpo() -> AsyncIterator[None]:
+    await obter_redis().flushdb()
     yield
+
+    # O cliente do Redis prende o event loop do teste, que morre com ele.
+    await obter_redis().aclose()
+    obter_redis.cache_clear()
 
     # Cada teste roda no seu próprio event loop. O pool do engine guardaria
     # conexões do loop anterior, que morre junto com o teste — daí o descarte.
