@@ -4,6 +4,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app
+from tests.sse import nomes_dos_eventos, texto_recebido
 
 
 @pytest.fixture
@@ -17,7 +18,7 @@ async def _criar_conversa(cliente: AsyncClient) -> str:
     return str(resposta.json()["id"])
 
 
-async def test_responde_e_guarda_a_troca(cliente: AsyncClient) -> None:
+async def test_resposta_chega_em_pedacos_e_termina_com_fim(cliente: AsyncClient) -> None:
     async with cliente:
         conversa_id = await _criar_conversa(cliente)
 
@@ -25,8 +26,10 @@ async def test_responde_e_guarda_a_troca(cliente: AsyncClient) -> None:
             f"/conversas/{conversa_id}/mensagens", json={"conteudo": "oi"}
         )
 
-        assert resposta.status_code == 200
-        assert resposta.json()["resposta"] == "Você disse: oi"
+    assert resposta.status_code == 200
+    assert resposta.headers["content-type"].startswith("text/event-stream")
+    assert texto_recebido(resposta.text).strip() == "Você disse: oi"
+    assert nomes_dos_eventos(resposta.text)[-1] == "fim"
 
 
 async def test_historico_alimenta_a_proxima_pergunta(cliente: AsyncClient) -> None:
@@ -38,12 +41,24 @@ async def test_historico_alimenta_a_proxima_pergunta(cliente: AsyncClient) -> No
             f"/conversas/{conversa_id}/mensagens", json={"conteudo": "segunda"}
         )
 
-        # O provedor fake ecoa a última fala do usuário; se o histórico tivesse
-        # se perdido, a ordem das mensagens não se sustentaria.
-        assert segunda.json()["resposta"] == "Você disse: segunda"
+    # O provedor fake ecoa a última fala do usuário; se a troca anterior não
+    # tivesse sido gravada, a ordem das mensagens não se sustentaria.
+    assert texto_recebido(segunda.text).strip() == "Você disse: segunda"
 
 
-async def test_conversa_inexistente_devolve_404(cliente: AsyncClient) -> None:
+async def test_quebra_de_linha_na_resposta_nao_parte_o_evento(cliente: AsyncClient) -> None:
+    async with cliente:
+        conversa_id = await _criar_conversa(cliente)
+        resposta = await cliente.post(
+            f"/conversas/{conversa_id}/mensagens", json={"conteudo": "linha1\nlinha2"}
+        )
+
+    assert texto_recebido(resposta.text).strip() == "Você disse: linha1\nlinha2"
+
+
+async def test_conversa_inexistente_devolve_404_antes_de_abrir_o_stream(
+    cliente: AsyncClient,
+) -> None:
     async with cliente:
         resposta = await cliente.post(
             f"/conversas/{uuid.uuid4()}/mensagens", json={"conteudo": "oi"}

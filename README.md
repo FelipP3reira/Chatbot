@@ -48,6 +48,31 @@ e a chave não está no ambiente, a aplicação não sobe. Errar cedo é melhor 
 descobrir na primeira mensagem do usuário. A chave é um `SecretStr`, então não
 vaza em log, `repr()` ou traceback.
 
+## Streaming
+
+`POST /conversas/{id}/mensagens` devolve `text/event-stream`:
+
+```
+event: pedaco
+data: {"texto": "Olá"}
+
+event: fim
+data: {}
+```
+
+Se o provedor cair, chega `event: erro` com uma mensagem em português — o stream
+já respondeu `200`, então não existe mais status HTTP para contar o problema. Os
+dados vão em JSON porque uma resposta com quebra de linha partiria o evento SSE
+ao meio.
+
+**Timeout, retry e o que não se repete.** O limite de espera é *por pedaço*, não
+pela resposta inteira: uma resposta longa é legítima, um provedor mudo não.
+Falhas temporárias (rede, 429, 5xx) são repetidas com backoff exponencial e
+jitter; `4xx` não, porque insistir só queima cota. E se a falha acontece **depois
+do primeiro pedaço**, não há retry: o usuário já leu aquele texto, e repetir
+duplicaria a resposta na tela. A troca só entra no histórico quando a resposta
+termina inteira.
+
 ## Estrutura
 
 ```
@@ -69,7 +94,7 @@ Em construção, por fatias:
 
 - [x] Bootstrap: configuração validada, tratamento central de erro, saúde, Docker
 - [x] Conversa persistida, histórico com janela e provedores (Anthropic e fake)
-- [ ] Streaming (SSE) e resiliência do provedor: timeout, retry e fallback
+- [x] Streaming (SSE) e resiliência do provedor: timeout, retry e fallback
 - [ ] RAG: ingestão, embeddings, busca por similaridade, injeção de contexto
 - [ ] Rate limit e limite de tokens por sessão
 - [ ] Frontend com sanitização

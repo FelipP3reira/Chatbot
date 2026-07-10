@@ -20,5 +20,13 @@ class ProvedorLLM(Protocol):
     ) -> AsyncIterator[str]: ...
 
 
+class ErroTemporarioDoProvedor(Exception):
+    """Rede, limite de uso ou erro do servidor: insistir pode resolver.
+
+    Traduzido a partir das exceções do SDK para que a política de retry não
+    dependa de nenhum provedor específico.
+    """
+
+
 class ProvedorIndisponivel(Exception):
-    """O provedor falhou de um jeito que não adianta insistir agora."""
+    """Insistir não resolve, ou as tentativas acabaram."""
