@@ -13,6 +13,8 @@ from app.api.documentos import obter_indice
 from app.conversa.repositorio import RepositorioDeConversas
 from app.conversa.servico import ServicoDeConversa
 from app.db import obter_sessao
+from app.limites.dependencias import limitar_taxa, obter_orcamento
+from app.limites.orcamento import OrcamentoDeTokens
 from app.llm.base import ProvedorIndisponivel, ProvedorLLM
 from app.llm.fabrica import obter_provedor
 from app.rag.indice import IndiceDeDocumentos
@@ -40,8 +42,9 @@ def obter_servico(
     sessao: Annotated[AsyncSession, Depends(obter_sessao)],
     provedor: Annotated[ProvedorLLM, Depends(obter_provedor)],
     indice: Annotated[IndiceDeDocumentos, Depends(obter_indice)],
+    orcamento: Annotated[OrcamentoDeTokens, Depends(obter_orcamento)],
 ) -> ServicoDeConversa:
-    return ServicoDeConversa(RepositorioDeConversas(sessao), provedor, indice)
+    return ServicoDeConversa(RepositorioDeConversas(sessao), provedor, indice, orcamento)
 
 
 @roteador.post("", status_code=status.HTTP_201_CREATED, response_model=RespostaConversaCriada)
@@ -52,7 +55,7 @@ async def criar_conversa(
     return RespostaConversaCriada(id=conversa.id)
 
 
-@roteador.post("/{conversa_id}/mensagens")
+@roteador.post("/{conversa_id}/mensagens", dependencies=[Depends(limitar_taxa)])
 async def enviar_mensagem(
     conversa_id: uuid.UUID,
     pedido: PedidoDeMensagem,

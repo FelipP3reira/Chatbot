@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.conversa.modelos import Conversa, Mensagem, PapelDaMensagem
@@ -25,7 +25,14 @@ class RepositorioDeConversas:
         )
         return list((await self._sessao.scalars(consulta)).all())
 
-    async def registrar_troca(self, conversa_id: uuid.UUID, pergunta: str, resposta: str) -> None:
+    async def registrar_troca(
+        self,
+        conversa_id: uuid.UUID,
+        pergunta: str,
+        resposta: str,
+        tokens_entrada: int = 0,
+        tokens_saida: int = 0,
+    ) -> None:
         """Grava pergunta e resposta juntas: ou as duas entram, ou nenhuma."""
         proxima = await self._proxima_ordem(conversa_id)
         self._sessao.add_all(
@@ -43,6 +50,16 @@ class RepositorioDeConversas:
                     conteudo=resposta,
                 ),
             ]
+        )
+        # Soma no banco, não em Python: duas respostas concorrentes na mesma
+        # conversa não podem sobrescrever a contagem uma da outra.
+        await self._sessao.execute(
+            update(Conversa)
+            .where(Conversa.id == conversa_id)
+            .values(
+                tokens_entrada=Conversa.tokens_entrada + tokens_entrada,
+                tokens_saida=Conversa.tokens_saida + tokens_saida,
+            )
         )
         await self._sessao.commit()
 

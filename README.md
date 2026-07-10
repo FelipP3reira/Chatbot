@@ -95,6 +95,25 @@ obedecido, e com as marcas de fechamento escapadas — assim um documento
 envenenado não consegue encerrar o próprio bloco e escrever fora dele. Há teste
 para o documento hostil e para a tentativa de fuga do bloco.
 
+## Limites de uso e custo
+
+Dois limites, porque protegem de coisas diferentes: o **por IP** contém quem abre
+conversas novas em série; o **por conversa** contém quem martela uma só. Ambos
+usam janela deslizante — a janela fixa zera na virada do minuto e deixa passar o
+dobro num intervalo curto.
+
+O **teto de tokens por conversa** é reservado *antes* de chamar o modelo, porque
+depois já custou. Estourou, a conversa responde `429` com mensagem em português.
+A resposta gerada é sempre contabilizada, mesmo passando do teto: ela não pode
+ser "desgerada" — quem paga a conta é a pergunta seguinte, que será barrada.
+
+A contagem de tokens é uma **estimativa** (`caracteres / 4`), não a cobrança do
+provedor. Serve para barrar uma sessão que está gastando demais antes de a conta
+chegar, e erra para mais em português — o lado seguro de errar.
+
+Reserva e contagem rodam em **Lua**, num comando só: ler e somar em dois passos
+deixaria duas requisições simultâneas passarem pelo teto ao mesmo tempo.
+
 ## Estrutura
 
 ```
@@ -118,5 +137,5 @@ Em construção, por fatias:
 - [x] Conversa persistida, histórico com janela e provedores (Anthropic e fake)
 - [x] Streaming (SSE) e resiliência do provedor: timeout, retry e fallback
 - [x] RAG: ingestão, embeddings, busca por similaridade, injeção de contexto
-- [ ] Rate limit e limite de tokens por sessão
+- [x] Rate limit e limite de tokens por sessão
 - [ ] Frontend com sanitização
